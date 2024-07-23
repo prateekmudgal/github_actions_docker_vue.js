@@ -1,12 +1,9 @@
-name: Deploy vue.js App
+name: Deploy Vue.js App
 
 on:
   push:
     branches:
       - main  # Triggers the action on push to the main branch
-  pull_request:
-    branches:
-      - main
 
 jobs:
   build:
@@ -36,6 +33,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
+    if: github.event_name == 'push' # Ensure deploy runs only on push events
 
     steps:
       - name: Download artifacts
@@ -51,19 +49,16 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
-            # Stop the existing Docker container if it is running
+            # Stop and remove existing Docker container if it exists
             docker stop vue_app || true
             docker rm vue_app || true
 
-            # Pull the latest Docker image
-            docker pull prateekmudgal/vue_app:latest
+            # Remove old files from deployment directory
+            rm -rf /var/www/vue_app/*
+
+            # Copy new build files to deployment directory
+            mkdir -p /var/www/vue_app
+            cp -r dist/* /var/www/vue_app/
 
             # Run the Docker container
-            docker run -d --name vue_app -p 80:80 -v ~/vue_app/data:/usr/share/nginx/html prateekmudgal/vue_app:latest
-
-            # Copy the build files to the server
-            mkdir -p ~/vue_app/data
-            cp -r dist/* ~/vue_app/data/
-
-            # Restart Docker container
-            docker restart vue_app
+            docker run -d --name vue_app -p 80:80 -v /var/www/vue_app:/usr/share/nginx/html prateekmudgal/vue_app:latest
