@@ -6,20 +6,18 @@ on:
       - main  # Triggers the action on push to the main branch
 
 jobs:
-  
   build:
-    
     runs-on: ubuntu-latest
 
     steps:
-      
+      - name: Checkout repository
         uses: actions/checkout@v3
-
       
+      - name: To set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build Docker image
+      - name: For Build Docker image
         run: docker build -t vueimagejs .
 
-      - name: Run Docker container
+      - name: for run Docker container
         run: docker container run -d --name vue_app -p 8081:80 vueimagejs
