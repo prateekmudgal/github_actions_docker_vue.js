@@ -6,7 +6,9 @@ on:
       - main  # Triggers the action on push to the main branch
 
 jobs:
-  build-and-run:
+  
+  build:
+    
     runs-on: ubuntu-latest
 
     steps:
