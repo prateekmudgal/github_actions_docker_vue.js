@@ -15,7 +15,7 @@ jobs:
     
 
       - name: For Build Docker image
-        run: docker build -t vueimagejs .
+        run: sudo docker build -t vueimagejs .
 
       - name: for run Docker container
-        run: docker container run -d --name vue_app -p 8081:80 vueimagejs
+        run: sudo docker container run -d --name vue_app -p 8081:80 vueimagejs
