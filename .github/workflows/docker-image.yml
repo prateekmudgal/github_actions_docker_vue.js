@@ -10,22 +10,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      
         uses: actions/checkout@v3
 
-      - name: Set up Docker
+      
         uses: docker/setup-buildx-action@v2
 
       - name: Build Docker image
-        run: |
-          # Build the Docker image
-          docker build -t vueimagejs .
+        run: docker build -t vueimagejs .
 
       - name: Run Docker container
-        run: |
-          # Stop and remove any existing container named vue_app
-          docker container stop vue_app || true
-          docker container rm vue_app || true
-
-          # Run the Docker container
-          docker container run -d --name vue_app -p 8081:80 vueimagejs
+        run: docker container run -d --name vue_app -p 8081:80 vueimagejs
