@@ -21,9 +21,9 @@ jobs:
 
       - name: Stop and Remove Existing Docker Container
         run: |
-          if [ $(sudo docker ps -q -f name=vue_app) ]; then
-            sudo docker stop vue_app
-            sudo docker rm vue_app
+          if [ $(docker ps -q -f name=vue_app) ]; then
+              docker stop vue_app
+              docker rm vue_app
           fi
 
       - name: Run Docker container
