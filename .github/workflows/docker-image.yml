@@ -17,7 +17,6 @@ jobs:
         run: |
           pwd
           whoami
-          ls
           docker build -t vueimagejs .
 
       - name: Stop and Remove Existing Docker Container
@@ -28,4 +27,4 @@ jobs:
           fi
 
       - name: Run Docker container
-        run: sudo docker container run -d --name vue_app -p 8081:80 vueimagejs
+        run: docker container run -d --name vue_app -p 8081:80 vueimagejs
