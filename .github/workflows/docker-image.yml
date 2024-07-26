@@ -7,15 +7,21 @@ on:
 
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: self-hosted   # the runner we made  and configure with our server
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-    
 
-      - name: For Build Docker image
+      - name: Build Docker image
         run: sudo docker build -t vueimagejs .
 
-      - name: for run Docker container
+      - name: Stop and Remove Existing Docker Container
+        run: |
+          if [ $(sudo docker ps -q -f name=vue_app) ]; then
+            sudo docker stop vue_app
+            sudo docker rm vue_app
+          fi
+
+      - name: Run Docker container
         run: sudo docker container run -d --name vue_app -p 8081:80 vueimagejs
