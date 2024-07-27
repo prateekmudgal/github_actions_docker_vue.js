@@ -1,3 +1,4 @@
+---
 
 # Single-Page Application in Vue.js
 
@@ -9,9 +10,46 @@ In short, a single-page application is an app that doesn't need to reload the pa
 
 I have a sample Single-Page Application built with Vue.js.
 
-Our goal here is to Dockerize this application, push the image to Amazon Elastic Container Registry (ECR), and deploy it using Amazon Elastic Container Service (ECS) Fargate, attaching an Elastic Load Balancer (ELB) and Auto Scaling Group (ASG).
+Our goal here is to Dockerize this application and deploy it using GitHub Actions. We will automate the process of building the Docker image and running the container, ensuring a smooth deployment workflow.
 
-I initially attempted to use a single-stage Dockerfile but encountered a 404 error when launching a new container because the application wasn't running in the container. This issue led me to employ a multi-stage Dockerfile, which worked perfectly. Here is the Dockerfile:
+## Prerequisites
+
+Before proceeding with the deployment, ensure you have the following prerequisites set up:
+
+- **GitHub Account and Repository**: You'll need a GitHub account and a repository to store your Vue.js application code.
+- **Nginx Webserver**: Install and configure Nginx as your web server.
+- **GitHub Actions Runner**: Configure a GitHub Actions runner and connect it with your server.
+- **EC2 Instance (Ubuntu)**: Set up an Ubuntu EC2 instance on AWS to host your application.
+- **Docker Installed**: Ensure Docker is installed on your server. You can install Docker by following these [instructions](https://docs.docker.com/engine/install/ubuntu/).
+
+### Post-Installation Steps
+
+After installing Docker, add your user to the Docker group to execute Docker commands without `sudo`:
+
+```bash
+sudo usermod -aG docker $USER
+```
+
+Log out and back in or restart your terminal session. Verify your user is added to the Docker group with:
+
+```bash
+cat /etc/group | grep docker
+```
+
+### Configuring GitHub Actions Runner
+
+After configuring the GitHub Actions runner on your server, run the following commands to install and start the runner service:
+
+```bash
+./svc.sh install
+./svc.sh start
+```
+
+> **Note:** To restart the runner in the background, ensure it's set up as a service. This prevents your server from being occupied by the runner process.
+
+## Dockerizing the Vue.js Application
+
+Initially, I attempted to use a single-stage Dockerfile but encountered a 404 error when launching a new container because the application wasn't running in the container. This issue led me to employ a multi-stage Dockerfile, which worked perfectly. Here is the Dockerfile:
 
 ```Dockerfile
 # Build stage
@@ -32,16 +70,18 @@ CMD ["nginx", "-g", "daemon off;"]
 
 This approach also reduces the size of the image significantly.
 
+### Building and Running the Docker Image Locally
+
 To verify if it's working or not, execute the following commands:
 
 ```bash
-sudo docker build -t vueimagejs .
+docker build -t vueimagejs .
 ```
 
 Now, to run a container:
 
 ```bash
-sudo docker container run -d -p 8081:80 vueimagejs
+docker container run -d -p 8081:80 vueimagejs
 ```
 
 Verify by running:
@@ -52,62 +92,55 @@ curl localhost:8081
 
 Or simply open `localhost:8081` in your browser.
 
-Next, create a repository in Amazon Elastic Container Registry (ECR):
+## Deploying with GitHub Actions
 
-1. Install the AWS Command Line Interface (CLI) if you haven't already:
+We will use GitHub Actions to automate the deployment of our Vue.js application. The GitHub Actions workflow will handle building the Docker image and deploying it to a server.
 
-   ```bash
-   sudo apt install awscli
-   ```
+### Setting Up GitHub Actions
 
-2. Configure the AWS CLI:
+1. **Create a `.github/workflows` directory** in your project's root if it doesn't already exist.
+2. **Create a YAML file** inside this directory, e.g., `docker-image.yml`, with the following configuration:
 
-   ```bash
-   aws configure
-   ```
+```yaml
+name: Deploy Vue.js Application
 
-3. Provide the credentials for a user with ECS access to create a repository in ECR:
+on:
+  push:
+    branches:
+      - main  # Triggers the action on push to the main branch
 
-   ```bash
-   aws ecr create-repository --repository-name <repo_name> --region <region_name>
-   ```
+jobs:
+  build:
+    runs-on: self-hosted   # Use the self-hosted runner configured with your server
 
-4. In the ECR console, select your repository and click "View push commands."
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-Proceed to the ECS console:
+      - name: Build Docker image
+        run: docker build -t vueimagejs .
 
-1. Create a task definition. 
+      - name: Stop and Remove Existing Docker Container
+        run: |
+          if [ $(docker ps -aq -f name=vue_app) ]; then
+              docker stop vue_app
+              docker rm vue_app
+          fi
 
-   - Provide a name.
-   - Select AWS Fargate.
-   - Choose the OS as Linux.
-   - Specify the CPU (e.g., 1vCPU) and Memory (e.g., 3GB).
-   - Leave the Task role and Task Execution Role as default.
+      - name: Run Docker container
+        run: docker container run -d --name vue_app -p 8081:80 vueimagejs
+```
 
-2. Configure the container details:
+### Workflow Explanation
 
-   - Name.
-   - Image URI from ECR.
-   - Port mapping details.
-   - CPU, GPU, Memory hard limit, and Memory soft limit.
+- **Checkout Code**: This step checks out your repository's code to the GitHub Actions runner.
+- **Build Docker Image**: This command builds the Docker image with the specified tag `vueimagejs`.
+- **Stop & Remove Existing Container**: This step checks if a container with the same name exists, stops, and removes it if it does, then launches a new one.
+- **Run Docker Container**: This command runs the Docker container on port 8081, making your application accessible at `localhost:8081`.
 
-3. Define Environment Variables as needed.
+## Handling 404 Errors in SPA
 
-4. Leave the rest as default and create the task definition.
-
-Proceed to the creation of an Amazon ECS Cluster:
-
-1. Provide your Cluster Name.
-2. Select Infrastructure as Fargate.
-
-Now, create an Elastic Load Balancer:
-
-1. Create a service with your desired configuration.
-2. Select the Load Balancer you created and set up the Target Group.
-
-Now, go to the ECS Clusters and Create the service with the desired configuration.
-
-However, you might encounter a `404 error` when you hit the DNS of Load Balancer like /about or /anything and try to reload the page. This happens because single-page applications do not have server-side rendering. To resolve this, you can use a location block in the NGINX configuration file. Here's the configuration:
+In a Single-Page Application, you might encounter a `404 error` when you hit a URL directly or refresh the page. This happens because SPAs do not have server-side rendering. To resolve this, you can use a location block in the NGINX configuration file. Here's the configuration:
 
 ```nginx
 server {
@@ -121,30 +154,22 @@ server {
     }
 }
 ```
-`try_files` tests for the existence of the file in the local file system and may rewrite the URL, if it does exist, it only remembers it - and continues processing the rest of the location block.
-This configuration ensures that routes are handled by Vue.js and prevents 404 errors.
 
-All of these details are already included in the Dockerfile.
+`try_files` tests for the existence of the file in the local file system and may rewrite the URL. If it does exist, it only remembers it and continues processing the rest of the location block. This configuration ensures that routes are handled by Vue.js and prevents 404 errors.
 
-The Dockerfile first builds your Vue.js application and copies the `dist` folder to another NGINX image. It also copies the NGINX conf file to the `/etc/nginx/conf.d/` folder.
+All of these details are already included in the Dockerfile. The Dockerfile first builds your Vue.js application and copies the `dist` folder to another NGINX image. It also copies the NGINX conf file to the `/etc/nginx/conf.d/` folder.
 
 With these steps, you can achieve your goal. Feel free to adapt this documentation to your specific requirements and Flask application configuration.
 
 # Thank You
 
-I hope you find this information useful. If you have any doubts about any of the steps, please feel free to contact me. If you encounter any issues or have suggestions for improvement, please let me know.
-
-<!-- [![Build Status](https://img.icons8.com/color/452/linkedin.png)](https://www.linkedin.com/in/gaurav-barakoti-27002223b) -->
-
+I hope you find it useful. If you have any doubt in any of the step then feel free to contact me. If you find any issue in it then let me know.
 
 <table>
   <tr>
-    <th><a href="https://www.linkedin.com/in/gaurav-barakoti-27002223b" target="_blank"><img src="https://img.icons8.com/color/452/linkedin.png" alt="linkedin" width="30"/><a/></th>
-    <th><a href="mailto:bestgaurav1234@gmail.com" target="_blank"><img src="https://img.icons8.com/color/344/gmail-new.png" alt="Mail" width="30"/><a/>
-</th>
+    <th><a href="https://www.linkedin.com/in/prateek-mudgal-devops" target="_blank"><img src="https://img.icons8.com/color/452/linkedin.png" alt="linkedin" width="30"/></a></th>
+    <th><a href="mailto:mudgalprateek00@gmail.com" target="_blank"><img src="https://img.icons8.com/color/344/gmail-new.png" alt="Mail" width="30"/></a></th>
   </tr>
 </table>
 
-
-
-
+---
