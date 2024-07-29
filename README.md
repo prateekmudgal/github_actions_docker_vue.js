@@ -136,6 +136,8 @@ jobs:
 - **Build Docker Image**: This command builds the Docker image with the specified tag `vueimagejs`.
 - **Stop & Remove Existing Container**: This step checks if a container with the same name exists, stops, and removes it if it does, then launches a new one.
 - **Run Docker Container**: This command runs the Docker container on port 8081, making your application accessible at `localhost:8081`.
+  
+![Screenshot (235)](https://github.com/user-attachments/assets/a8a4ce12-285c-443f-89f0-beaf6bed0d8d)
 
 ## Handling 404 Errors in SPA
 
@@ -159,6 +161,9 @@ server {
 All of these details are already included in the Dockerfile. The Dockerfile first builds your Vue.js application and copies the `dist` folder to another NGINX image. It also copies the NGINX conf file to the `/etc/nginx/conf.d/` folder.
 
 With these steps, you can achieve your goal. Feel free to adapt this documentation to your specific requirements and Flask application configuration.
+![Screenshot (234)](https://github.com/user-attachments/assets/e28f35fd-a9c7-4421-b717-373203a2a5af)
+
+
 
 # Thank You
 
